@@ -4,6 +4,7 @@ import fs from 'fs'
 import fg from 'fast-glob'
 import path from 'path'
 import axios from 'axios'
+import rateLimit from 'express-rate-limit'
 import hb from './hb'
 import bin from './bin'
 import db from './db'
@@ -28,7 +29,6 @@ export default {
         server: null,
         router: null,
     },
-    rateLimitState: new Map(),
 
     module: 'Server',
     log: log.log,
@@ -102,6 +102,13 @@ export default {
 
     addHearthbeatEndpoint(){
         this.log("Create Hearthbeat endpoint")
+        const storeDBRateLimiter = rateLimit({
+            windowMs: 1000,
+            limit: 1,
+            standardHeaders: true,
+            legacyHeaders: false,
+        })
+
         this.host.router.get('/hb', function(request, response){
             response.status(200).json({
                 remoteAddress: request.connection.remoteAddress,
@@ -113,14 +120,7 @@ export default {
         })
 
         // storage database
-        this.host.router.get('/store.db', async (request, response) => {
-            if(this.isRateLimited(request, '/store.db')){
-                response.status(429).json({
-                    error: 'Too many store requests',
-                })
-                return
-            }
-
+        this.host.router.get('/store.db', storeDBRateLimiter, async (request, response) => {
             // console.log("HB-Store Download store.db Request", request)
             // console.log("PS4 IP", request.ip )
             var r = /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/
@@ -316,19 +316,6 @@ export default {
             image: base + item.image,
             main_icon_path: base + item.main_icon_path,
         }))
-    },
-
-    isRateLimited(request, scope='global', windowMs=1000){
-        let client = request.ip || request.connection.remoteAddress || 'unknown'
-        let now = Date.now()
-        let key = `${scope}:${client}`
-        let previous = this.rateLimitState.get(key) || 0
-
-        if(now - previous < windowMs)
-          return true
-
-        this.rateLimitState.set(key, now)
-        return false
     },
 
     createServer(){
