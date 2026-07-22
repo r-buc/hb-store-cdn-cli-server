@@ -1,6 +1,7 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
+import crypto from 'crypto'
 import axios from 'axios'
 import Database from 'better-sqlite3'
 import log from './log'
@@ -12,6 +13,7 @@ export default {
     module: 'RemoteStore',
     log: log.log,
     error: log.error,
+    proxyTargets: {},
 
     fetchItemsForBase(base){
         let tempStore = path.join(os.tmpdir(), `pkg-zone-store-${process.pid}-${Date.now()}.db`)
@@ -62,7 +64,8 @@ export default {
           return target
 
         let remoteURL = this.toRemoteURL(target)
-        return `${base}/proxy/${this.encodeURL(remoteURL)}`
+        let proxyKey = this.registerProxyTarget(remoteURL)
+        return `${base}/proxy/${proxyKey}`
     },
 
     toRemoteURL(target=''){
@@ -72,18 +75,14 @@ export default {
         return new URL(target, REMOTE_STORE_ORIGIN).toString()
     },
 
-    encodeURL(url=''){
-        return Buffer.from(url)
-            .toString('base64')
-            .replace(/\+/g, '-')
-            .replace(/\//g, '_')
-            .replace(/=+$/g, '')
+    registerProxyTarget(target=''){
+        let proxyKey = crypto.createHash('sha256').update(target).digest('hex')
+        this.proxyTargets[proxyKey] = target
+        return proxyKey
     },
 
-    decodeURL(value=''){
-        let base64 = value.replace(/-/g, '+').replace(/_/g, '/')
-        let padding = (4 - (base64.length % 4)) % 4
-        return Buffer.from(base64 + '='.repeat(padding), 'base64').toString('utf-8')
+    getProxyTarget(proxyKey=''){
+        return this.proxyTargets[proxyKey] || null
     },
 
     isAllowedProxyTarget(target=''){

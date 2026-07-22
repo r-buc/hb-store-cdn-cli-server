@@ -28,6 +28,7 @@ export default {
         server: null,
         router: null,
     },
+    rateLimitState: new Map(),
 
     module: 'Server',
     log: log.log,
@@ -113,6 +114,13 @@ export default {
 
         // storage database
         this.host.router.get('/store.db', async (request, response) => {
+            if(this.isRateLimited(request, '/store.db')){
+                response.status(429).json({
+                    error: 'Too many store requests',
+                })
+                return
+            }
+
             // console.log("HB-Store Download store.db Request", request)
             // console.log("PS4 IP", request.ip )
             var r = /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/
@@ -138,7 +146,7 @@ export default {
         })
 
         this.host.router.get('/proxy/:target', async (request, response) => {
-            let target = remoteStore.decodeURL(request.params.target || '')
+            let target = remoteStore.getProxyTarget(request.params.target || '')
 
             if(!remoteStore.isAllowedProxyTarget(target)){
                 response.status(400).json({
@@ -308,6 +316,19 @@ export default {
             image: base + item.image,
             main_icon_path: base + item.main_icon_path,
         }))
+    },
+
+    isRateLimited(request, scope='global', windowMs=1000){
+        let client = request.ip || request.connection.remoteAddress || 'unknown'
+        let now = Date.now()
+        let key = `${scope}:${client}`
+        let previous = this.rateLimitState.get(key) || 0
+
+        if(now - previous < windowMs)
+          return true
+
+        this.rateLimitState.set(key, now)
+        return false
     },
 
     createServer(){
