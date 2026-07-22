@@ -10,7 +10,7 @@ export default {
         let patchedFilename = (file.charAt(0) == "/") ? file.substr(1).replace(/[^a-zA-Z0-9-_./]/g, '') : file.replace(/[^a-zA-Z0-9-_./]/g, '')
         let stats = fs.lstatSync(file)
         let size = this.formatBytes(stats.size, 2)
-        let minfw = ((data.paramSfo.SYSTEM_VER >> 24) & 0xff).toString().substring(0,2) + "." + ((data.paramSfo.SYSTEM_VER >> 16) & 0xff).toString().substring(0,2)
+        let minfw = ((data.paramSfo.SYSTEM_VER >> 24) & 0xff).toString(16).padStart(2, '0') + "." + ((data.paramSfo.SYSTEM_VER >> 16) & 0xff).toString(16).padStart(2, '0')
         let pkgtype = "Unknown"
         let id = data.paramSfo.TITLE_ID
         if (data.paramSfo.CATEGORY == "gd") {
@@ -38,7 +38,7 @@ export default {
           "Size": size,
           "Author": "HB-Store CDN",
           "apptype": pkgtype,
-          "pv": "5.05+",
+          "pv": minfw,
           "main_icon_path": "__image",
           "main_menu_pic": "/user/app/NPXS39041/storedata/" + data.paramSfo.TITLE_ID + ".png",
           "releaseddate": "2019-04-30",
