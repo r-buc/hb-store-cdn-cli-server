@@ -70,6 +70,14 @@ export default {
         return this.getFile(path)
     },
 
+    // Inquirer prompts need a real TTY on both ends to render (arrow-key
+    // menus use raw mode). Without one - e.g. `docker run` without `-it`,
+    // piped input, or a cron/orchestrator invocation - prompting would
+    // hang or fail, so callers should skip interactive menus in that case.
+    isInteractive(){
+        return Boolean(process.stdin.isTTY && process.stdout.isTTY)
+    },
+
     loadConfig(){
         let file = this.getFile('config.ini')
         let config = {}
@@ -81,7 +89,25 @@ export default {
             this.error("Couldn't load config.ini. Please run the Setup or make a config file.")
         }
 
-        return { ...this.data.default, ...config }
+        return { ...this.data.default, ...config, ...this.getEnvConfig() }
+    },
+
+    // Allows running the server unattended (e.g. in a container) by
+    // overriding config.ini values with environment variables, so `start`
+    // doesn't depend on the interactive setup menu having run before.
+    getEnvConfig(){
+        let env = {}
+
+        if(process.env.CDN_HOST)
+          env.host = process.env.CDN_HOST
+
+        if(process.env.CDN_PORT)
+          env.port = process.env.CDN_PORT
+
+        if(process.env.CDN_BASE_PATH)
+          env.basePath = process.env.CDN_BASE_PATH
+
+        return env
     },
 
     saveConfig(config){
@@ -118,7 +144,8 @@ export default {
     },
 
     getCDN(config){
-        return clc.bgWhite.black('CDN Address: http://' + config.host + ':' + config.port + ' ')
+        let host = (config.host && config.host.length) ? config.host : '(auto-detected per request)'
+        return clc.bgWhite.black('CDN Address: http://' + host + ':' + config.port + ' ')
     },
 
     getTable(head=[], chars={}){

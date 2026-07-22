@@ -64,10 +64,11 @@ export default {
         return data.patchedFilename + '/icon0.png'
     },
 
-    addImages(data=null, base){
-        let id    = data.id
-        let patched
-        let image = base + '/' + this.getImagePathURI(data)
+    // Stores a relative path only; the absolute base (http://host:port) is
+    // resolved per-request in server.js, either from an explicit config.host
+    // override or from the requesting client's Host header.
+    addImages(data=null){
+        let image = '/' + this.getImagePathURI(data)
 
         data.image = image
         data.main_icon_path = image

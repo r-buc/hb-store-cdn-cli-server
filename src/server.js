@@ -49,7 +49,11 @@ export default {
         else
           this.error("No files found in basePath! Check your basePath and put sommething in!")
 
-        cli.server()
+        // Only pop up the interactive Server menu when a TTY is actually
+        // available - never in a container/headless run (e.g. `start`
+        // without `-it`), which must not block on an inquirer prompt.
+        if(helper.isInteractive())
+          cli.server()
     },
 
     setState(state=null){
@@ -114,6 +118,12 @@ export default {
             let cleanedIP = ip.match(r)[0]
             this.updatePS4IP(cleanedIP)
 
+            // rebuild store.db with URLs resolved against whoever is asking,
+            // so no static IP/host needs to be pre-configured
+            let base = this.getRequestBaseURI(request)
+            db.renewDB()
+            db.addAllItems(this.resolveItemsForBase(base))
+
             let store = db.getStorePath()
             response.status(200).download(store, 'store.db')
         })
@@ -152,7 +162,8 @@ export default {
 
             if(!isFolder){
               this.error("BasePath does exist but doesn't seem to be a valid folder.")
-              cli.run()
+              if(helper.isInteractive())
+                cli.run()
               return
             }
 
@@ -171,7 +182,8 @@ export default {
         this.log("Found " + files.length + " files in basePath")
 
         // loop for files and map the files to a file object
-        let base = this.getBaseURI()
+        // (URLs are kept relative here; the absolute base is resolved
+        // per-request when store.db is served, see getRequestBaseURI())
         let i = 1
         for (const file of files){
             // console.log("Start file ", file)
@@ -185,8 +197,8 @@ export default {
                 // console.log(data)
                 let item = hb.createItem(data, file, i)
                     item = hb.removeBasePath(item, toRemoveBasePath)
-                    item = hb.addImages(item, base)
-                    item = this.addFileEndpoint(item, base)
+                    item = hb.addImages(item)
+                    item = this.addFileEndpoint(item)
 
                 this.files.push(item)
                 // console.log(item)
@@ -208,7 +220,7 @@ export default {
         this.sendFiles()
     },
 
-    addFileEndpoint(item, base){
+    addFileEndpoint(item){
         this.host.router.get(`/${item.patchedFilename}`, function(request, response){
             response.status(200).download(item.path, item.filename)
         })
@@ -225,9 +237,29 @@ export default {
             response.end(img)
         })
 
-        item.package = base + '/' + item.patchedFilename
+        item.package = '/' + item.patchedFilename
 
         return item
+    },
+
+    // An explicitly configured host (config.ini `host` / CDN_HOST env var)
+    // always wins, e.g. behind a reverse proxy or custom public domain.
+    // Otherwise derive the address from how the client actually reached us,
+    // so this works out of the box in containers/NAT setups with no config.
+    getRequestBaseURI(request){
+        if(this.ip && this.ip.length)
+          return this.getBaseURI()
+
+        return request.protocol + '://' + request.get('host')
+    },
+
+    resolveItemsForBase(base){
+        return this.files.map( item => ({
+            ...item,
+            package: base + item.package,
+            image: base + item.image,
+            main_icon_path: base + item.main_icon_path,
+        }))
     },
 
     createServer(){
@@ -251,14 +283,17 @@ export default {
         }
 
         // console.log(this.ip, this.ip.length, this.port, this.port.length)
-        if(this.ip.length == 0 || this.port.length == 0){
-            this.error("Server cannot start. Please configure IP and Port")
+        if(this.port.length == 0){
+            this.error("Server cannot start. Please configure a Port")
+            this.error("Set it via the Setup menu, config.ini, or the CDN_PORT environment variable")
             // this.$message({ type: 'warning', message: error });
+            process.exitCode = 1
             return
         }
 
         this.host.server = await this.host.app.listen(this.port, () => {
-            this.notify('Server is running on ' + this.ip + ' at port ' + this.port)
+            let addressLabel = (this.ip && this.ip.length) ? this.ip : 'auto-detected per request (Host header)'
+            this.notify('Server is running on ' + addressLabel + ' at port ' + this.port)
             this.setState('running')
 
             this.addCORSHandler()
@@ -298,6 +333,30 @@ export default {
     async restart(config){
         this.log("Server restarting triggered")
         this.stop(true, config)
+    },
+
+    // Used by the SIGTERM handler (see app.js) for a clean container/process
+    // shutdown: closes the HTTP server and DB connection and returns, without
+    // falling back to the interactive menu like stop() does.
+    async shutdown(){
+        this.log('Shutting down...')
+
+        if(this.host.server){
+            await new Promise( resolve => this.host.server.close(resolve) )
+            this.log('HTTP server closed')
+        }
+
+        if(db.db){
+            try {
+                db.db.close()
+                this.log('Database connection closed')
+            }
+            catch(e){
+                this.error(e)
+            }
+        }
+
+        this.setState('stopped')
     },
 
 }

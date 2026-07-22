@@ -21,7 +21,10 @@ let args = process.argv.slice(2)
 // #todo to be done https://www.npmjs.com/package/clui
 
 if(args.includes('setup')){
-  cli.run()
+  if(helper.isInteractive())
+    cli.run()
+  else
+    helper.error("'setup' needs an interactive terminal (TTY). Run this in a real terminal, or configure config.ini / CDN_HOST, CDN_PORT, CDN_BASE_PATH env vars directly.")
 }
 
 if(args.includes('init')){
@@ -48,8 +51,33 @@ if(args.includes('download-bin')){
 
 if(args.length == 0){
   // console.log("[Info] No input specified. Running setup command")
-  cli.run()
+  if(helper.isInteractive())
+    cli.run()
+  else
+    helper.error("No command given and no interactive terminal (TTY) available. Use 'start', 'init', 'check-bin' or 'download-bin', or attach a TTY to use the interactive menu.")
 }
+
+// Allow a clean shutdown (e.g. `docker stop`, orchestrator restarts,
+// systemd) instead of relying on SIGKILL once the grace period expires.
+process.on('SIGTERM', async () => {
+  helper.notify("Received SIGTERM, shutting down gracefully...")
+
+  let forceExit = setTimeout(() => {
+    helper.error("Graceful shutdown timed out, forcing exit")
+    process.exit(1)
+  }, 5000)
+
+  try {
+    await server.shutdown()
+    clearTimeout(forceExit)
+    process.exit(0)
+  }
+  catch(e){
+    helper.error(e)
+    clearTimeout(forceExit)
+    process.exit(1)
+  }
+})
 
 
 

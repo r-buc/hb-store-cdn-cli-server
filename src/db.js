@@ -39,6 +39,16 @@ export default {
       },
 
       instance(){
+          // store.db is now regenerated on every /store.db request (see
+          // server.js), so close any previously opened handle first to
+          // avoid leaking file descriptors/connections over time.
+          if(this.db){
+              try {
+                  this.db.close()
+              }
+              catch(e){}
+          }
+
           const db = new Database(this.getStorePath())
           this.db = db
 
