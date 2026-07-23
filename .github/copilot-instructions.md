@@ -36,6 +36,3 @@
 5. Run `npm run dist` (TypeScript build) to confirm no compilation errors.
 6. Run `npm audit` again to confirm vulnerability count has decreased.
 7. Commit all changed files (`package.json`, `package-lock.json`, `Dockerfile`, any source fixes).
-
-### Known Limitations in This Repository
-- `inquirer` (v8.x) and `inquirer-file-tree-selection-prompt` use a legacy API incompatible with inquirer v9+. Before upgrading to inquirer v9+, rewrite the interactive CLI prompts in `src/cli.js` to use the new `@inquirer/prompts` API.
