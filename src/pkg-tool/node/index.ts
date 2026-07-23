@@ -21,14 +21,14 @@ const createSeek = (pkgFilePath: string): CustomSeek => {
       let totalChunk = Buffer.from([]);
       return await new Promise<Buffer>((resolve, reject) => {
         if (whence) {
-          stream.on('data', (chunk: Buffer) => {
-            totalChunk = Buffer.concat([totalChunk, chunk]);
+          stream.on('data', (chunk: Buffer | string) => {
+            totalChunk = Buffer.concat([totalChunk, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)]);
           });
           stream.on('end', () => {
             resolve(totalChunk);
           });
         } else {
-          stream.once('data', resolve);
+          stream.once('data', (chunk: Buffer | string) => resolve(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
         }
         stream.on('error', reject);
       });
