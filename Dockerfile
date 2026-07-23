@@ -5,7 +5,7 @@
 ## Installs full dependencies, compiles TypeScript sources (src -> build)
 ## and builds native addons (e.g. better-sqlite3) against the target image.
 ##
-FROM node:18-bullseye-slim AS builder
+FROM node:22-bookworm-slim AS builder
 
 # Native modules (better-sqlite3, etc.) need a toolchain to build/install.
 RUN apt-get update \
@@ -27,7 +27,7 @@ RUN npm prune --omit=dev
 ##
 ## ---- Runtime stage -----------------------------------------------------
 ##
-FROM node:18-bullseye-slim AS runtime
+FROM node:22-bookworm-slim AS runtime
 
 WORKDIR /app
 

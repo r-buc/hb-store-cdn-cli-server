@@ -106,7 +106,6 @@ export default {
             windowMs: 1000,
             limit: 1,
             standardHeaders: true,
-            legacyHeaders: false,
         })
 
         this.host.router.get('/hb', function(request, response){

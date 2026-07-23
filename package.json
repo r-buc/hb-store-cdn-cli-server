@@ -6,10 +6,10 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "npm run clean && npm run dist && pkg .",
     "build:all": "npm run clean && npm run dist && pkg . -t linux,macos,win",
-    "build:win": "npm run clean && npm run dist && pkg . -t node14-win-x64",
-    "build:mac": "npm run clean && npm run dist && pkg . -t node14-macos-x64",
-    "build:linux": "npm run clean && npm run dist && pkg . -t node14-linux-x64",
-    "build:linux-arm": "npm run clean && npm run dist && pkg . -t node14-linux-arm64",
+    "build:win": "npm run clean && npm run dist && pkg . -t node22-win-x64",
+    "build:mac": "npm run clean && npm run dist && pkg . -t node22-macos-x64",
+    "build:linux": "npm run clean && npm run dist && pkg . -t node22-linux-x64",
+    "build:linux-arm": "npm run clean && npm run dist && pkg . -t node22-linux-arm64",
     "dist:es5": "babel ./src --out-dir build",
     "dist": "tsc --rootDir src --target ES2020 --module commonjs --outDir build",
     "dev": "npm run clean && npm run dist -- --watch",
@@ -26,7 +26,7 @@
       "node_modules/**/*"
     ],
     "targets": [
-      "node14-macos-x64"
+      "node22-macos-x64"
     ],
     "outputPath": "release",
     "options": [
@@ -40,26 +40,23 @@
     "@babel/preset-typescript": "^7.29.7",
     "@babel/runtime": "^7.29.7",
     "@njzy/ps4-pkg-info": "^0.1.0",
-    "@types/inquirer": "^8.2.1",
-    "axios": "^0.27.2",
+    "@inquirer/prompts": "^8.5.2",
+    "axios": "^1.18.1",
     "better-sqlite3": "^11.10.0",
     "clear": "^0.1.0",
     "cli-color": "^2.0.2",
     "cli-table": "^0.3.11",
-    "download": "^8.0.0",
-    "express": "^4.18.1",
-    "express-rate-limit": "^7.5.0",
     "extract-zip": "^2.0.1",
+    "express": "^4.22.2",
+    "express-rate-limit": "^8.6.0",
     "fast-glob": "^3.2.11",
     "figlet": "^1.5.2",
     "ini": "^3.0.0",
-    "inquirer": "^8.2.4",
-    "inquirer-file-tree-selection-prompt": "^1.0.19",
     "md5-file": "^5.0.0",
     "normalize-path": "^3.0.0",
     "os": "^0.1.2",
     "python-struct": "^1.1.3",
-    "rimraf": "^5.0.10"
+    "rimraf": "^6.1.3"
   },
   "babel": {
     "presets": [
@@ -70,9 +67,9 @@
   "devDependencies": {
     "@babel/plugin-transform-runtime": "^7.29.7",
     "@types/express": "^4.17.25",
-    "@types/node": "^17.0.31",
+    "@types/node": "^22.0.0",
     "@types/python-struct": "^1.0.0",
-    "typescript": "^4.6.4"
+    "typescript": "^5.9.3"
   },
   "plugins": [
     "@babel/plugin-transform-runtime"

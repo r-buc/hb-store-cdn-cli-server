@@ -2,13 +2,36 @@ import helper from './helper'
 import server from './server'
 import bin from './bin'
 import log from './log'
-import inquirer from 'inquirer'
+import { select, input, Separator } from '@inquirer/prompts'
 import fs from 'fs'
 import path from 'path'
 import clc from 'cli-color'
 import clear from 'clear'
 
-inquirer.registerPrompt('file-tree-selection', require('inquirer-file-tree-selection-prompt'))
+async function selectDirectory(startPath = process.cwd()) {
+    let currentPath = path.resolve(startPath)
+    while (true) {
+        let entries
+        try {
+            entries = fs.readdirSync(currentPath, { withFileTypes: true })
+        } catch {
+            entries = []
+        }
+        const dirs = entries.filter(e => e.isDirectory() && !e.name.startsWith('.'))
+
+        const choices = [
+            { name: `[✓ Select] ${currentPath}`, value: '__select__' },
+            { name: '.. (go up)', value: '__up__' },
+            ...dirs.map(d => ({ name: d.name + '/', value: path.join(currentPath, d.name) })),
+        ]
+
+        const choice = await select({ message: 'Select basePath:', choices, loop: false, pageSize: 15 })
+
+        if (choice === '__select__') return currentPath
+        if (choice === '__up__') currentPath = path.dirname(currentPath)
+        else currentPath = choice
+    }
+}
 
 export default {
 
@@ -18,236 +41,179 @@ export default {
     notify: log.notify,
 
     async run(){
-        let menu = await inquirer.prompt([
-              {
-                  type: 'list',
-                  name: "run",
-                  loop: false,
-                  pageSize: 12,
-                  message: "## Menu ## HB-Store CDN CLI Server",
-                  choices: [
-                      {
-                          value: "start",
-                          name: "[Server] Start the server as pre-configured"
-                      },
-                      new inquirer.Separator(),
-                      {
-                          value: "initConfig",
-                          name: "[Config] Initialize empty config file",
-                      },
-                      {
-                          value: "loadConfig",
-                          name: "[Config] Show me the current Configuration",
-                      },
-                      {
-                          value: "setup",
-                          name: "[Config] Generate new Config file for Server",
-                      },
-                      new inquirer.Separator(),
-                      {
-                          value: "check-server-binaries",
-                          name: "[Bin] Check Server Binaries",
-                      },
-                      {
-                          value: "download-bin",
-                          name: "[Bin] Force re-download server binaries",
-                      },
-                      new inquirer.Separator(),
-                      {
-                          value: "quit",
-                          name: "Quit Application."
-                      },
-                      new inquirer.Separator(),
-                  ]
-              }
-          ])
-          .catch((error) => {
-              console.log(error)
-          });
-          console.log(" ")
+        const run = await select({
+            message: "## Menu ## HB-Store CDN CLI Server",
+            loop: false,
+            pageSize: 12,
+            choices: [
+                {
+                    value: "start",
+                    name: "[Server] Start the server as pre-configured"
+                },
+                new Separator(),
+                {
+                    value: "initConfig",
+                    name: "[Config] Initialize empty config file",
+                },
+                {
+                    value: "loadConfig",
+                    name: "[Config] Show me the current Configuration",
+                },
+                {
+                    value: "setup",
+                    name: "[Config] Generate new Config file for Server",
+                },
+                new Separator(),
+                {
+                    value: "check-server-binaries",
+                    name: "[Bin] Check Server Binaries",
+                },
+                {
+                    value: "download-bin",
+                    name: "[Bin] Force re-download server binaries",
+                },
+                new Separator(),
+                {
+                    value: "quit",
+                    name: "Quit Application."
+                },
+                new Separator(),
+            ]
+        })
+        console.log(" ")
 
-          // console.log("Run command", run)
-          if(menu.run == 'setup'){
-              let preConfig = helper.loadConfig()
-              let newConfig = await this.configure()
+        if(run == 'setup'){
+            let preConfig = helper.loadConfig()
+            let newConfig = await this.configure()
 
-              let finalConfig = { ...preConfig, ...newConfig }
+            let finalConfig = { ...preConfig, ...newConfig }
 
-              helper.saveConfig(finalConfig)
-              await this.showCurrentConfig()
-              this.run()
-          }
+            helper.saveConfig(finalConfig)
+            await this.showCurrentConfig()
+            this.run()
+        }
 
-          if(menu.run == 'loadConfig'){
-              await this.showCurrentConfig()
-              this.run()
-          }
+        if(run == 'loadConfig'){
+            await this.showCurrentConfig()
+            this.run()
+        }
 
-          if(menu.run == 'initConfig'){
-              await helper.init()
-              this.run()
-          }
+        if(run == 'initConfig'){
+            await helper.init()
+            this.run()
+        }
 
-          if(menu.run == 'start'){
-              let config = helper.loadConfig()
-              server.start(config)
-          }
+        if(run == 'start'){
+            let config = helper.loadConfig()
+            server.start(config)
+        }
 
-          if(menu.run == 'check-server-binaries'){
-              await bin.checkServerBinaries()
-              this.run()
-          }
+        if(run == 'check-server-binaries'){
+            await bin.checkServerBinaries()
+            this.run()
+        }
 
-          if(menu.run == 'download-bin'){
-              await bin.forceServerBinariesDownload()
-              this.run()
-          }
+        if(run == 'download-bin'){
+            await bin.forceServerBinariesDownload()
+            this.run()
+        }
     },
 
     async configure(){
-          let interfaceChoices = helper.getInterfaceChoices(true)
-          let defaultHost = interfaceChoices[0].value
+        let interfaceChoices = helper.getInterfaceChoices(true)
+        let defaultHost = interfaceChoices[0].value
 
-          let config = await inquirer
-              .prompt([
-                  {
-                      type: 'list',
-                      name: 'host',
-                      default: defaultHost,
-                      message: "Which Network Interface are you using? Your local IP?",
-                      choices: interfaceChoices,
-                  },
-                  {
-                      name: 'custom',
-                      message: "You want to use a custom Host. What is it?",
-                      when(a){
-                          if(a.host == 'custom')
-                            return true
-                      }
-                  },
-                  {
-                      name: 'port',
-                      default: 6449,
-                      message: "Which port do you want to choose?"
-                  },
-                  { 
-                      type: 'list',
-                      name: 'path_choose',
-                      default: '/pkg',
-                      message: "Which basePath do you wanna set?",
-                      choices: [
-                          {
-                              value: 'default',
-                              name: "Default to current sub folder /pkg"
-                          },
-                          {
-                              value: 'tree',
-                              name: 'Choose with Tree view'
-                          },
-                          {
-                              value: 'manual',
-                              name: 'Put your path yourself in'
-                          }
-                      ]
-                  },
-                  {
-                      name: 'manual',
-                      message: "Put in the base path manually",
-                      when(a){
-                          if(a.path_choose == 'manual')
-                            return true
-                      }
-                  },
-                  {
-                      type: 'file-tree-selection',
-                      name: 'tree',
-                      message: "Select your basePath?",
-                      onlyShowDir: true,
-                      when(a){
-                        if(a.path_choose == 'tree')
-                          return true
-                      },
-                      enableGoUpperDirector: true,
-                  }
-              ])
-              .catch((error) => {
-                  console.log(error)
-              });
+        const host = await select({
+            message: "Which Network Interface are you using? Your local IP?",
+            default: defaultHost,
+            choices: interfaceChoices,
+        })
 
+        let resolvedHost = host
+        if(host == 'custom'){
+            resolvedHost = await input({ message: "You want to use a custom Host. What is it?" })
+        }
 
-          if(config.host == 'custom')
-              config.host = config.custom
+        const port = await input({ message: "Which port do you want to choose?", default: '6449' })
 
-          if(config.path_choose == 'manual')
-              config.basePath = config.manual
+        const path_choose = await select({
+            message: "Which basePath do you wanna set?",
+            default: 'default',
+            choices: [
+                {
+                    value: 'default',
+                    name: "Default to current sub folder /pkg"
+                },
+                {
+                    value: 'tree',
+                    name: 'Choose with Tree view'
+                },
+                {
+                    value: 'manual',
+                    name: 'Put your path yourself in'
+                }
+            ]
+        })
 
-          if(config.path_choose == 'tree')
-              config.basePath = config.tree
+        let basePath
+        if(path_choose == 'manual'){
+            basePath = await input({ message: "Put in the base path manually" })
+        } else if(path_choose == 'tree'){
+            basePath = await selectDirectory(path.dirname(process.execPath))
+        } else {
+            let pkgPath = path.join(path.dirname(process.execPath), '/pkg')
+            if (!fs.existsSync(pkgPath)) {
+                fs.mkdirSync(pkgPath)
+            }
+            basePath = pkgPath
+        }
 
-          if(config.path_choose == 'default'){
-              let pkgPath = path.join(path.dirname(process.execPath), '/pkg')
-              if (!fs.existsSync(pkgPath)) {
-                  fs.mkdirSync(pkgPath);
-              }
-              config.basePath = pkgPath
-          }
-
-
-          let finalConfig = {
-              host: config.host,
-              port: config.port,
-              basePath: config.basePath,
-          }
-
-          return finalConfig
+        return {
+            host: resolvedHost,
+            port,
+            basePath,
+        }
     },
 
     async server(){
         let config = helper.loadConfig()
-        let menu = await inquirer.prompt([
-              {
-                  type: 'list',
-                  name: "run",
-                  message: "## Server ## HB-Store CDN CLI Server",
-                  choices: [
-                      {
-                          value: "state",
-                          name: "CDN Server is: " + helper.getServerState(),
-                      },
-                      {
-                          value: "cdn",
-                          name: helper.getCDN(config),
-                      },
-                      new inquirer.Separator(),
-                      {
-                          value: "start",
-                          name: "[Server] Start the server"
-                      },
-                      {
-                          value: "restart",
-                          name: "[Server] Restart the server"
-                      },
-                      {
-                          value: "stop",
-                          name: "[Server] Stop the server"
-                      },
-                  ]
-              }
-          ])
-          .catch((error) => {
-              console.log(error)
-          });
+        const run = await select({
+            message: "## Server ## HB-Store CDN CLI Server",
+            choices: [
+                {
+                    value: "state",
+                    name: "CDN Server is: " + helper.getServerState(),
+                },
+                {
+                    value: "cdn",
+                    name: helper.getCDN(config),
+                },
+                new Separator(),
+                {
+                    value: "start",
+                    name: "[Server] Start the server"
+                },
+                {
+                    value: "restart",
+                    name: "[Server] Restart the server"
+                },
+                {
+                    value: "stop",
+                    name: "[Server] Stop the server"
+                },
+            ]
+        })
 
-          if(menu.run == 'stop')
+        if(run == 'stop')
             server.stop()
 
-          if(menu.run == 'start')
+        if(run == 'start')
             server.start(config)
 
-          if(menu.run == 'restart')
+        if(run == 'restart')
             server.restart(config)
 
-          if(menu.run == 'state' || menu.run == 'cdn')
+        if(run == 'state' || run == 'cdn')
             this.server()
     },
 
@@ -291,3 +257,4 @@ export default {
 
 
 }
+

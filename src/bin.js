@@ -4,7 +4,6 @@ import log from './log'
 import axios from 'axios'
 import fs from 'fs'
 import path from 'path'
-import download from 'download'
 import clc from 'cli-color'
 import extract from 'extract-zip'
 
@@ -127,7 +126,8 @@ export default {
 
         // await Promise.all( files.map( async file => fs.writeFileSync(binPath + '/' + path.basename(file), await download(file)) ) )        
         for ( const file of files ){
-            fs.writeFileSync(binPath + '/' + path.basename(file), await download(file)) 
+            const { data } = await axios.get(file, { responseType: 'arraybuffer' })
+            fs.writeFileSync(binPath + '/' + path.basename(file), Buffer.from(data))
         }
 
         config.binVersion = version
