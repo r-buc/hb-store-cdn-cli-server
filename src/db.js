@@ -58,7 +58,7 @@ export default {
       addAllItems(items){
           const db = this.instance()
 
-          const insert = db.prepare("INSERT INTO homebrews (pid,id,name,desc,image,package,version,picpath,desc_1,desc_2,ReviewStars,Size,Author,apptype,pv,main_icon_path,main_menu_pic,releaseddate) VALUES (CAST(@pid AS INTEGER),@id,@name,@desc,@image,@package,@version,@picpath,@desc_1,@desc_2,@ReviewStars,@Size,@Author,@apptype,@pv,@main_icon_path,@main_menu_pic,@releaseddate)")
+          const insert = db.prepare("INSERT INTO homebrews (pid,id,name,desc,image,package,version,picpath,desc_1,desc_2,ReviewStars,Size,Author,apptype,pv,main_icon_path,main_menu_pic,releaseddate,number_downloads,github,video,twitter) VALUES (CAST(@pid AS INTEGER),@id,@name,@desc,@image,@package,@version,@picpath,@desc_1,@desc_2,@ReviewStars,@Size,@Author,@apptype,@pv,@main_icon_path,@main_menu_pic,@releaseddate,@number_downloads,@github,@video,@twitter)")
 
           const insertAll = db.transaction( items => {
               for (const item of items)

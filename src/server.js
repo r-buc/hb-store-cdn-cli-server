@@ -3,6 +3,8 @@ import http from 'http'
 import fs from 'fs'
 import fg from 'fast-glob'
 import path from 'path'
+import axios from 'axios'
+import rateLimit from 'express-rate-limit'
 import hb from './hb'
 import bin from './bin'
 import db from './db'
@@ -15,6 +17,7 @@ import pkgInfo from 'ps4-pkg-info'
 import { getPs4PkgInfo } from "./pkg-tool/node"
 import md5File from 'md5-file'
 import normalize from 'normalize-path'
+import remoteStore from './remoteStore'
 
 export default {
     ip: null,
@@ -99,6 +102,13 @@ export default {
 
     addHearthbeatEndpoint(){
         this.log("Create Hearthbeat endpoint")
+        const storeDBRateLimiter = rateLimit({
+            windowMs: 1000,
+            limit: 1,
+            standardHeaders: true,
+            legacyHeaders: false,
+        })
+
         this.host.router.get('/hb', function(request, response){
             response.status(200).json({
                 remoteAddress: request.connection.remoteAddress,
@@ -110,22 +120,68 @@ export default {
         })
 
         // storage database
-        this.host.router.get('/store.db', (request, response) => {
+        this.host.router.get('/store.db', storeDBRateLimiter, async (request, response) => {
             // console.log("HB-Store Download store.db Request", request)
             // console.log("PS4 IP", request.ip )
             var r = /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/
             let ip = request.ip
-            let cleanedIP = ip.match(r)[0]
-            this.updatePS4IP(cleanedIP)
+            let cleanedIP = ip && ip.match(r) ? ip.match(r)[0] : ''
+            if(cleanedIP.length)
+              this.updatePS4IP(cleanedIP)
 
             // rebuild store.db with URLs resolved against whoever is asking,
             // so no static IP/host needs to be pre-configured
             let base = this.getRequestBaseURI(request)
             db.renewDB()
-            db.addAllItems(this.resolveItemsForBase(base))
+            let localItems = this.resolveItemsForBase(base)
+            let remoteItems = await remoteStore.fetchItemsForBase(base)
+            let items = [...localItems, ...remoteItems].map((item, index) => ({
+                ...item,
+                pid: index + 1,
+            }))
+            db.addAllItems(items)
 
             let store = db.getStorePath()
             response.status(200).download(store, 'store.db')
+        })
+
+        this.host.router.get('/proxy/:target', async (request, response) => {
+            let target = remoteStore.getProxyTarget(request.params.target || '')
+
+            if(!remoteStore.isAllowedProxyTarget(target)){
+                response.status(400).json({
+                    error: 'Unsupported proxy target',
+                })
+                return
+            }
+
+            try {
+                let upstream = await axios.get(target, {
+                    responseType: 'stream',
+                    timeout: 30000,
+                    validateStatus: () => true,
+                })
+
+                response.status(upstream.status)
+
+                for (const header of ['content-type', 'content-length', 'content-disposition', 'etag', 'last-modified', 'accept-ranges']) {
+                    if(upstream.headers[header])
+                      response.setHeader(header, upstream.headers[header])
+                }
+
+                upstream.data.on('error', (error) => {
+                    this.error('Remote proxy stream failed: ' + error.message)
+                    response.end()
+                })
+
+                upstream.data.pipe(response)
+            }
+            catch(error){
+                this.error('Remote proxy request failed: ' + error.message)
+                response.status(502).json({
+                    error: 'Failed to proxy remote request',
+                })
+            }
         })
 
         // check the storage checksum
