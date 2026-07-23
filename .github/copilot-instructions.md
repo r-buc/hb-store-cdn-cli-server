@@ -38,5 +38,4 @@
 7. Commit all changed files (`package.json`, `package-lock.json`, `Dockerfile`, any source fixes).
 
 ### Known Limitations in This Repository
-- The `download` npm package (v8.x) has transitive critical vulnerabilities via `decompress` and `got` that have no upstream fix in the 8.x line. If a maintained replacement becomes available, migrate `src/bin.js` to use it.
 - `inquirer` (v8.x) and `inquirer-file-tree-selection-prompt` use a legacy API incompatible with inquirer v9+. Before upgrading to inquirer v9+, rewrite the interactive CLI prompts in `src/cli.js` to use the new `@inquirer/prompts` API.
