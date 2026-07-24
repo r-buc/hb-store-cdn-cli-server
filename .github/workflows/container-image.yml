@@ -41,7 +41,32 @@ jobs:
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push container image
+      - name: Build container image (local)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: ghcr.io/${{ github.repository }}:ci-test
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Smoke-test container image
+        run: |
+          docker run --rm -d --name hb-store-test -p 6449:6449 ghcr.io/${{ github.repository }}:ci-test
+          trap 'docker stop hb-store-test' EXIT
+          for i in $(seq 1 10); do
+            if curl -sf http://localhost:6449/hb; then
+              echo "Container passed smoke test"
+              exit 0
+            fi
+            echo "Waiting for container... attempt $i"
+            sleep 2
+          done
+          echo "Smoke test failed: /hb did not respond after 10 attempts"
+          exit 1
+
+      - name: Push container image
         uses: docker/build-push-action@v6
         with:
           context: .
