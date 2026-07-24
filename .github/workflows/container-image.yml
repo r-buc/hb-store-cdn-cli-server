@@ -58,6 +58,12 @@ jobs:
           for i in $(seq 1 10); do
             if curl -sf http://localhost:6449/hb; then
               echo "Container passed smoke test"
+              if curl -A "StoreHAX/GL-0xFFFFFFFF" http://localhost:6449/store.db --output /dev/null; then
+                echo "Store database is accessible"
+              else
+                echo "Store database is not accessible"
+                exit 1
+              fi
               exit 0
             fi
             echo "Waiting for container... attempt $i"
