@@ -12,8 +12,6 @@ import cli from './cli'
 import log from './log'
 import clc from 'cli-color'
 import helper from './helper'
-import pkgInfo from 'ps4-pkg-info'
-// import { getPs4PkgInfo } from "@njzy/ps4-pkg-info"
 import { getPs4PkgInfo } from "./pkg-tool/node"
 import md5File from 'md5-file'
 import normalize from 'normalize-path'
