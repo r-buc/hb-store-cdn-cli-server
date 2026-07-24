@@ -155,17 +155,32 @@ export default {
             }
 
             try {
-                let upstream = await axios.get(target, {
-                    responseType: 'stream',
+                let method = request.method === 'HEAD' ? 'head' : 'get'
+                let headers = {}
+                for (const header of ['accept', 'if-modified-since', 'if-none-match', 'range', 'user-agent']) {
+                    if(request.headers[header])
+                      headers[header] = request.headers[header]
+                }
+
+                let upstream = await axios({
+                    url: target,
+                    method,
+                    headers,
+                    responseType: method === 'head' ? undefined : 'stream',
                     timeout: 30000,
                     validateStatus: () => true,
                 })
 
                 response.status(upstream.status)
 
-                for (const header of ['content-type', 'content-length', 'content-disposition', 'etag', 'last-modified', 'accept-ranges']) {
+                for (const header of ['cache-control', 'content-disposition', 'content-length', 'content-range', 'content-type', 'etag', 'last-modified', 'accept-ranges']) {
                     if(upstream.headers[header])
                       response.setHeader(header, upstream.headers[header])
+                }
+
+                if(method === 'head'){
+                    response.end()
+                    return
                 }
 
                 upstream.data.on('error', (error) => {

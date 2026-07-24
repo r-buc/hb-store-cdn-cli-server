@@ -2,6 +2,7 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import crypto from 'crypto'
+import net from 'net'
 import axios from 'axios'
 import Database from 'better-sqlite3'
 import log from './log'
@@ -18,6 +19,7 @@ export default {
     fetchItemsForBase(base){
         let tempStore = path.join(os.tmpdir(), `pkg-zone-store-${process.pid}-${Date.now()}.db`)
         let remoteDB = null
+        let proxyTargets = {}
 
         return axios.get(REMOTE_STORE_URL, {
             responseType: 'arraybuffer',
@@ -32,7 +34,11 @@ export default {
 
             return remoteDB.prepare('SELECT * FROM homebrews').all()
         })
-        .then(items => items.map(item => this.rewriteItemForBase(item, base)))
+        .then(items => items.map(item => this.rewriteItemForBase(item, base, proxyTargets)))
+        .then(items => {
+            this.proxyTargets = proxyTargets
+            return items
+        })
         .catch(error => {
             this.error('Failed to load remote pkg-zone store: ' + error.message)
             return []
@@ -50,21 +56,21 @@ export default {
         })
     },
 
-    rewriteItemForBase(item, base){
+    rewriteItemForBase(item, base, proxyTargets=this.proxyTargets){
         return {
             ...item,
-            package: this.getProxyURL(base, item.package),
-            image: this.getProxyURL(base, item.image),
-            main_icon_path: this.getProxyURL(base, item.main_icon_path || item.image),
+            package: this.getProxyURL(base, item.package, proxyTargets),
+            image: this.getProxyURL(base, item.image, proxyTargets),
+            main_icon_path: this.getProxyURL(base, item.main_icon_path || item.image, proxyTargets),
         }
     },
 
-    getProxyURL(base, target=''){
+    getProxyURL(base, target='', proxyTargets=this.proxyTargets){
         if(!target)
           return target
 
         let remoteURL = this.toRemoteURL(target)
-        let proxyKey = this.registerProxyTarget(remoteURL)
+        let proxyKey = this.registerProxyTarget(remoteURL, proxyTargets)
         return `${base}/proxy/${proxyKey}`
     },
 
@@ -75,9 +81,9 @@ export default {
         return new URL(target, REMOTE_STORE_ORIGIN).toString()
     },
 
-    registerProxyTarget(target=''){
+    registerProxyTarget(target='', proxyTargets=this.proxyTargets){
         let proxyKey = crypto.createHash('sha256').update(target).digest('hex')
-        this.proxyTargets[proxyKey] = target
+        proxyTargets[proxyKey] = target
         return proxyKey
     },
 
@@ -88,11 +94,53 @@ export default {
     isAllowedProxyTarget(target=''){
         try {
             let url = new URL(target)
-            let allowedHost = url.hostname === 'pkg-zone.com' || url.hostname.endsWith('.pkg-zone.com')
-            return allowedHost && ['http:', 'https:'].includes(url.protocol)
+            return ['http:', 'https:'].includes(url.protocol) && !this.isBlockedProxyHost(url.hostname)
         }
         catch(e){
             return false
         }
+    },
+
+    isBlockedProxyHost(hostname=''){
+        let host = hostname.toLowerCase()
+
+        if(!host.length)
+          return true
+
+        if(host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local'))
+          return true
+
+        let ipVersion = net.isIP(host)
+        if(!ipVersion)
+          return !host.includes('.')
+
+        if(ipVersion === 4)
+          return this.isPrivateIPv4Address(host)
+
+        return this.isPrivateIPv6Address(host)
+    },
+
+    isPrivateIPv4Address(host=''){
+        let parts = host.split('.').map(part => parseInt(part, 10))
+        let [a, b] = parts
+
+        return a === 10
+            || a === 127
+            || a === 0
+            || (a === 169 && b === 254)
+            || (a === 172 && b >= 16 && b <= 31)
+            || (a === 192 && b === 168)
+    },
+
+    isPrivateIPv6Address(host=''){
+        let normalizedHost = host.toLowerCase()
+        return normalizedHost === '::1'
+            || normalizedHost === '::'
+            || normalizedHost.startsWith('fc')
+            || normalizedHost.startsWith('fd')
+            || normalizedHost.startsWith('fe8')
+            || normalizedHost.startsWith('fe9')
+            || normalizedHost.startsWith('fea')
+            || normalizedHost.startsWith('feb')
     },
 }
