@@ -133,7 +133,7 @@ export default {
             let base = this.getRequestBaseURI(request)
             db.renewDB()
             let localItems = this.resolveItemsForBase(base)
-            let remoteItems = await remoteStore.fetchItemsForBase(base)
+            let remoteItems = await remoteStore.fetchItemsForBase(base, request.headers)
             let items = [...localItems, ...remoteItems].map((item, index) => ({
                 ...item,
                 pid: index + 1,
@@ -157,6 +157,9 @@ export default {
             try {
                 let upstream = await axios.get(target, {
                     responseType: 'stream',
+                    headers: Object.fromEntries(
+                        Object.entries(request.headers).filter(([key]) => ['user-agent'].includes(key))
+                    ),
                     timeout: 30000,
                     validateStatus: () => true,
                 })

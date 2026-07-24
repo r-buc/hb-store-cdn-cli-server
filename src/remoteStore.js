@@ -15,12 +15,15 @@ export default {
     error: log.error,
     proxyTargets: {},
 
-    fetchItemsForBase(base){
+    fetchItemsForBase(base, headers={}){
         let tempStore = path.join(os.tmpdir(), `pkg-zone-store-${process.pid}-${Date.now()}.db`)
         let remoteDB = null
 
         return axios.get(REMOTE_STORE_URL, {
             responseType: 'arraybuffer',
+            headers: Object.fromEntries(
+                Object.entries(headers).filter(([key]) => ['user-agent'].includes(key))
+            ),
             timeout: 15000,
         })
         .then(response => {
