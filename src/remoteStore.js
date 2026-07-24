@@ -2,7 +2,6 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import crypto from 'crypto'
-import net from 'net'
 import axios from 'axios'
 import Database from 'better-sqlite3'
 import log from './log'
@@ -94,53 +93,11 @@ export default {
     isAllowedProxyTarget(target=''){
         try {
             let url = new URL(target)
-            return ['http:', 'https:'].includes(url.protocol) && !this.isBlockedProxyHost(url.hostname)
+            let allowedHost = url.hostname === 'pkg-zone.com' || url.hostname.endsWith('.pkg-zone.com')
+            return allowedHost && ['http:', 'https:'].includes(url.protocol)
         }
         catch(e){
             return false
         }
-    },
-
-    isBlockedProxyHost(hostname=''){
-        let host = hostname.toLowerCase()
-
-        if(!host.length)
-          return true
-
-        if(host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local'))
-          return true
-
-        let ipVersion = net.isIP(host)
-        if(!ipVersion)
-          return !host.includes('.')
-
-        if(ipVersion === 4)
-          return this.isPrivateIPv4Address(host)
-
-        return this.isPrivateIPv6Address(host)
-    },
-
-    isPrivateIPv4Address(host=''){
-        let parts = host.split('.').map(part => parseInt(part, 10))
-        let [a, b] = parts
-
-        return a === 10
-            || a === 127
-            || a === 0
-            || (a === 169 && b === 254)
-            || (a === 172 && b >= 16 && b <= 31)
-            || (a === 192 && b === 168)
-    },
-
-    isPrivateIPv6Address(host=''){
-        let normalizedHost = host.toLowerCase()
-        return normalizedHost === '::1'
-            || normalizedHost === '::'
-            || normalizedHost.startsWith('fc')
-            || normalizedHost.startsWith('fd')
-            || normalizedHost.startsWith('fe8')
-            || normalizedHost.startsWith('fe9')
-            || normalizedHost.startsWith('fea')
-            || normalizedHost.startsWith('feb')
     },
 }
