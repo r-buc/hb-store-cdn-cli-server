@@ -82,6 +82,16 @@ export default {
         })
     },
 
+    getProxyRequestHeaders(request){
+        let headers = { ...request.headers }
+
+        for (const header of ['connection', 'content-length', 'host', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade']) {
+            delete headers[header]
+        }
+
+        return headers
+    },
+
     createPaths(){
         this.log("Server is ready to create paths")
         db.renewDB()
@@ -154,11 +164,7 @@ export default {
 
             try {
                 let method = request.method === 'HEAD' ? 'head' : 'get'
-                let headers = {}
-                for (const header of ['accept', 'if-modified-since', 'if-none-match', 'range', 'user-agent']) {
-                    if(request.headers[header])
-                      headers[header] = request.headers[header]
-                }
+                let headers = this.getProxyRequestHeaders(request)
 
                 let upstream = await axios({
                     url: target,
