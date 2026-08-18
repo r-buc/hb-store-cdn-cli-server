@@ -46,6 +46,7 @@ export default {
           "github": "",
           "video": "",
           "twitter": "",
+          "content_id": data.paramSfo.CONTENT_ID,
           path: file,
           filename: path.basename(file),
           patchedFilename,
