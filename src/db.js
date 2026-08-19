@@ -12,16 +12,11 @@ export default {
       error: log.error,
       notify: log.notify,
 
-      getCleanStorePath(){
-          return path.join(__dirname, '../assets/store.clean.db')
-      },
-
       getStorePath(){
           return path.join(path.dirname(process.execPath), 'bin/store.db')
       },
 
       renewDB(){
-          let clean = this.getCleanStorePath()
           let store = this.getStorePath()
           let dir   = path.dirname(store)
 
@@ -29,13 +24,23 @@ export default {
               fs.mkdirSync(dir);
           }
 
-          try {
-              fs.copyFileSync(clean, store)
-              this.log("store.db has been renewed")
+          // Remove any stale file so we always start with a fresh DB.
+          if (fs.existsSync(store)) {
+              fs.unlinkSync(store)
           }
-          catch(e){
-              this.error(e)
-          }
+
+          const db = new Database(store)
+          db.prepare(
+              'CREATE TABLE homebrews (' +
+              '  pid, id, name, desc, image, package, version, picpath,' +
+              '  desc_1, desc_2, ReviewStars, Size, Author, apptype, pv,' +
+              '  main_icon_path, main_menu_pic, releaseddate, number_downloads,' +
+              '  github, video, twitter, content_id' +
+              ')'
+          ).run()
+          db.close()
+
+          this.log("store.db has been renewed")
       },
 
       instance(){
