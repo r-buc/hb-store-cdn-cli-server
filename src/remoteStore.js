@@ -55,6 +55,7 @@ export default {
 
     rewriteItemForBase(item, base){
         return {
+            content_id: null,
             ...item,
             package: this.getProxyURL(base, item.package),
             image: this.getProxyURL(base, item.image),
