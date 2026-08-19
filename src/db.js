@@ -55,6 +55,19 @@ export default {
           return db
       },
 
+      // All columns expected by the homebrews table. Any item property not
+      // listed here is ignored; any listed column absent from the item defaults
+      // to null so INSERT never throws "Missing named parameter".
+      DB_COLUMNS: ['pid','id','name','desc','image','package','version','picpath','desc_1','desc_2','ReviewStars','Size','Author','apptype','pv','main_icon_path','main_menu_pic','releaseddate','number_downloads','github','video','twitter','content_id'],
+
+      normalizeItem(item){
+          let row = {}
+          for (const col of this.DB_COLUMNS)
+              row[col] = item[col] ?? null
+          row.pid = item.pid
+          return row
+      },
+
       addAllItems(items){
           const db = this.instance()
 
@@ -62,7 +75,7 @@ export default {
 
           const insertAll = db.transaction( items => {
               for (const item of items)
-                insert.run(item)
+                insert.run(this.normalizeItem(item))
           })
 
           insertAll(items)
