@@ -122,33 +122,26 @@ export default {
         this.host.router.get('/store.db', storeDBRateLimiter, async (request, response) => {
             // console.log("HB-Store Download store.db Request", request)
             // console.log("PS4 IP", request.ip )
-            try {
-                var r = /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/
-                let ip = request.ip
-                let cleanedIP = ip && ip.match(r) ? ip.match(r)[0] : ''
-                if(cleanedIP.length)
-                  this.updatePS4IP(cleanedIP)
+            var r = /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/
+            let ip = request.ip
+            let cleanedIP = ip && ip.match(r) ? ip.match(r)[0] : ''
+            if(cleanedIP.length)
+              this.updatePS4IP(cleanedIP)
 
-                // rebuild store.db with URLs resolved against whoever is asking,
-                // so no static IP/host needs to be pre-configured
-                let base = this.getRequestBaseURI(request)
-                db.renewDB()
-                let localItems = this.resolveItemsForBase(base)
-                let remoteItems = await remoteStore.fetchItemsForBase(base, request.headers)
-                let items = [...localItems, ...remoteItems].map((item, index) => ({
-                    ...item,
-                    pid: index + 1,
-                }))
-                db.addAllItems(items)
+            // rebuild store.db with URLs resolved against whoever is asking,
+            // so no static IP/host needs to be pre-configured
+            let base = this.getRequestBaseURI(request)
+            db.renewDB()
+            let localItems = this.resolveItemsForBase(base)
+            let remoteItems = await remoteStore.fetchItemsForBase(base, request.headers)
+            let items = [...localItems, ...remoteItems].map((item, index) => ({
+                ...item,
+                pid: index + 1,
+            }))
+            db.addAllItems(items)
 
-                let store = db.getStorePath()
-                response.status(200).download(store, 'store.db')
-            }
-            catch(e){
-                this.error('Failed to serve store.db: ' + e.message)
-                if(!response.headersSent)
-                  response.status(500).json({ error: 'Failed to build store.db' })
-            }
+            let store = db.getStorePath()
+            response.status(200).download(store, 'store.db')
         })
 
         this.host.router.get('/proxy/:target', async (request, response) => {
