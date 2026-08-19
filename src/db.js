@@ -31,12 +31,7 @@ export default {
 
           const db = new Database(store)
           db.prepare(
-              'CREATE TABLE homebrews (' +
-              '  pid, id, name, desc, image, package, version, picpath,' +
-              '  desc_1, desc_2, ReviewStars, Size, Author, apptype, pv,' +
-              '  main_icon_path, main_menu_pic, releaseddate, number_downloads,' +
-              '  github, video, twitter, content_id' +
-              ')'
+              'CREATE TABLE homebrews (' + this.DB_COLUMNS.join(', ') + ')'
           ).run()
           db.close()
 
