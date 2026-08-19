@@ -22,7 +22,6 @@
       "build/**/*.js"
     ],
     "assets": [
-      "assets/**/*",
       "node_modules/**/*"
     ],
     "targets": [

@@ -41,7 +41,6 @@ RUN cp "$(command -v node)" /app/node
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/node_modules ./node_modules
 COPY package.json ./
-COPY assets ./assets
 
 RUN mkdir -p /app/pkg /app/bin
 
