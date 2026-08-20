@@ -12,13 +12,11 @@ export default {
     newUpdateAvailableVersion: "0.00",
 
     data: {
-        source: 'https://api.github.com/repos/LightningMods/PS4-Store/releases',
+        source: 'https://api.github.com/repos/r-buc/PS4-Store/releases',
         files: [
             'homebrew.elf',
-            'homebrew.elf.sig',
             'remote.md5',
-            'store.prx',
-            'store.prx.sig',
+            'store.prx'
         ],
     },
 
